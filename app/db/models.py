@@ -9,27 +9,40 @@ class Category(Base):
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    books: Mapped[list["Book"]] = relationship(
-        back_populates="category"
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True
     )
-
+    books: Mapped[list["Book"]] = relationship(
+    back_populates="category",
+    cascade="all, delete-orphan"
+)
 
 class Book(Base):
     __tablename__ = "books"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
+
     description: Mapped[str | None] = mapped_column(Text)
-    price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+
+    price: Mapped[float] = mapped_column(
+        Numeric(10, 2),
+        nullable=False
+    )
+
     url: Mapped[str] = mapped_column(Text, default="")
 
     category_id: Mapped[int | None] = mapped_column(
-    "category",
-    ForeignKey("categories.id")
-)
-
+        "category",
+        ForeignKey("categories.id")
+    )
 
     category: Mapped["Category | None"] = relationship(
         back_populates="books"
