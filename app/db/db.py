@@ -1,34 +1,63 @@
 
 import os
-import psycopg2
-
 from pathlib import Path
-from dotenv import load_dotenv
 from contextlib import contextmanager
-from psycopg2.extras import RealDictCursor
+
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
+# Загружаем переменные окружения
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
 
 
+# Настройки подключения к PostgreSQL
+DATABASE_URL = URL.create(
+    drivername="postgresql+psycopg2",
+    username=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    host=os.getenv("DB_HOST", "localhost"),
+    port=int(os.getenv("DB_PORT", "5432")),
+    database=os.getenv("DB_NAME", "books_db")
+)
+
+
+# Создаём подключение к БД
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True
+)
+
+
+# Создаём фабрику сессий
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=False
+)
+
+
+# Базовый класс моделей
+class Base(DeclarativeBase):
+    pass
+
+
+# Управление сессиями
 @contextmanager
-def get_connection():
-    connection = psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
-        database=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        cursor_factory=RealDictCursor
-    )
+def get_session():
+    session = SessionLocal()
 
     try:
-        yield connection
-        connection.commit()
+        yield session
+        session.commit()
     except Exception:
-        connection.rollback()
+        session.rollback()
         raise
     finally:
-        connection.close()
+        session.close()
 

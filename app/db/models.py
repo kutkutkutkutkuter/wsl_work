@@ -1,31 +1,43 @@
 
-from app.db.db import get_connection
+from sqlalchemy import String, Text, Numeric, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.db import Base, engine
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    books: Mapped[list["Book"]] = relationship(
+        back_populates="category"
+    )
+
+
+class Book(Base):
+    __tablename__ = "books"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    url: Mapped[str] = mapped_column(Text, default="")
+
+    category_id: Mapped[int | None] = mapped_column(
+    "category",
+    ForeignKey("categories.id")
+)
+
+
+    category: Mapped["Category | None"] = relationship(
+        back_populates="books"
+    )
 
 
 def create_tables():
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-
-            # Таблица категорий книг
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS categories (
-                    id SERIAL PRIMARY KEY,
-                    title VARCHAR(255) NOT NULL
-                );
-            """)
-
-            # Таблица книг
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS books (
-                    id SERIAL PRIMARY KEY,
-                    title VARCHAR(255) NOT NULL,
-                    description TEXT,
-                    price NUMERIC(10, 2) NOT NULL,
-                    url TEXT DEFAULT '',
-                    category INTEGER REFERENCES categories(id)
-                );
-            """)
-
+    Base.metadata.create_all(bind=engine)
     print("Таблицы успешно созданы!")
 
 

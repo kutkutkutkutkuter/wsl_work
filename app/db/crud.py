@@ -1,129 +1,124 @@
+from sqlalchemy import select
 
-from app.db.db import get_connection
+from app.db.db import get_session
+from app.db.models import Book, Category
 
 
-# =====================================
-# CATEGORIES — КАТЕГОРИИ
-# =====================================
+# ==========================
+# CRUD для категорий
+# ==========================
 
-# CREATE — создание категории
 def create_category(title):
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO categories (title)
-                VALUES (%s)
-                RETURNING id;
-            """, (title,))
-
-            return cursor.fetchone()["id"]
+    with get_session() as session:
+        category = Category(title=title)
+        session.add(category)
+        session.flush()
+        return category.id
 
 
-# READ — получение всех категорий
 def get_categories():
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, title
-                FROM categories
-                ORDER BY id;
-            """)
-
-            return cursor.fetchall()
+    with get_session() as session:
+        result = session.scalars(
+            select(Category).order_by(Category.id)
+        )
+        return result.all()
 
 
-# UPDATE — обновление категории
 def update_category(category_id, title):
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                UPDATE categories
-                SET title = %s
-                WHERE id = %s;
-            """, (title, category_id))
+    with get_session() as session:
+        category = session.get(Category, category_id)
+
+        if category is None:
+            return False
+
+        category.title = title
+        return True
 
 
-# DELETE — удаление категории
 def delete_category(category_id):
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                DELETE FROM categories
-                WHERE id = %s;
-            """, (category_id,))
+    with get_session() as session:
+        category = session.get(Category, category_id)
+
+        if category is None:
+            return False
+
+        session.delete(category)
+        return True
 
 
-# =====================================
-# BOOKS — КНИГИ
-# =====================================
+# ==========================
+# CRUD для книг
+# ==========================
 
-# CREATE — создание книги
-def create_book(title, description, price, url, category):
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO books
-                (title, description, price, url, category)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id;
-            """, (title, description, price, url, category))
+def create_book(title, description, price, url, category_id):
+    with get_session() as session:
+        book = Book(
+            title=title,
+            description=description,
+            price=price,
+            url=url,
+            category_id=category_id
+        )
 
-            return cursor.fetchone()["id"]
+        session.add(book)
+        session.flush()
+        return book.id
 
 
-# READ — получение всех книг
 def get_books():
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    id,
-                    title,
-                    description,
-                    price,
-                    url,
-                    category
-                FROM books
-                ORDER BY id;
-            """)
-
-            return cursor.fetchall()
+    with get_session() as session:
+        result = session.scalars(
+            select(Book).order_by(Book.id)
+        )
+        return result.all()
 
 
-# UPDATE — обновление книги
-def update_book(
-    book_id,
-    title,
-    description,
-    price,
-    url,
-    category
-):
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                UPDATE books
-                SET title = %s,
-                    description = %s,
-                    price = %s,
-                    url = %s,
-                    category = %s
-                WHERE id = %s;
-            """, (
-                title,
-                description,
-                price,
-                url,
-                category,
-                book_id
-            ))
+def update_book(book_id, title, description, price, url, category_id):
+    with get_session() as session:
+        book = session.get(Book, book_id)
+
+        if book is None:
+            return False
+
+        book.title = title
+        book.description = description
+        book.price = price
+        book.url = url
+        book.category_id = category_id
+
+        return True
 
 
-# DELETE — удаление книги
 def delete_book(book_id):
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                DELETE FROM books
-                WHERE id = %s;
-            """, (book_id,))
+    with get_session() as session:
+        book = session.get(Book, book_id)
+
+        if book is None:
+            return False
+
+        session.delete(book)
+        return True
+    
+if __name__ == "__main__":
+    
+    print("\nПроверка CRUD категорий")
+
+    category_id = create_category("Тестовая категория")
+
+    print("Добавлена категория с ID:", category_id)
+
+    category = next(
+        (c for c in get_categories() if c.id == category_id),
+        None
+    )
+
+    if category:
+        print("Категория найдена:", category.title)
+
+    update_category(category_id, "Обновлённая категория")
+
+    print("Категория обновлена!")
+
+    delete_category(category_id)
+
+    print("Категория удалена!")
